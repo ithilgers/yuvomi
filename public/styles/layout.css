@@ -7047,6 +7047,37 @@ dialog.modal-overlay::backdrop {
   to { opacity: 0; }
 }
 
+/* DAS BLATT STEHT UEBER DER TASTATUR, NICHT DAHINTER (utils/visible-area.js).
+ * Die Bildschirmtastatur verkleinert nur den sichtbaren Ausschnitt; der Dialog
+ * (`position: fixed; inset: 0`) blieb bildschirmhoch, das Blatt an seiner
+ * Unterkante lag hinter ihr - im Aufgabenformular ab "Tags" alles, dazu die
+ * Fusszeile mit "Speichern". Solange die Tastatur etwas verdeckt, legt
+ * components/modal.js Lage und Hoehe des Ausschnitts an jeden Dialog, und der
+ * Dialog nimmt genau diese Flaeche: das Blatt haengt an der Oberkante der
+ * Tastatur, ein mittiger Dialog (Tablet) steht mittig im Ausschnitt.
+ *
+ * Die Tafel wird hoechstens so hoch wie die Flaeche - der Rumpf rollt, Kopf
+ * und Fusszeile bleiben stehen. `100%` statt der dvh-Rechnung oben: `dvh`
+ * kennt die Tastatur nicht. Das angedockte Formular hat seine eigene,
+ * gemessene Lage und bleibt aussen vor. */
+.modal-overlay.modal-overlay--keyboard:not(.modal-overlay--docked) {
+  top: var(--visible-top);
+  bottom: auto;
+  height: var(--visible-height);
+}
+
+.modal-overlay--keyboard:not(.modal-overlay--docked) > .modal-panel {
+  max-height: 100%;
+}
+
+/* Unten das gewoehnliche Polster: die Gestenleiste liegt unter der Tastatur,
+ * ihr Abstand (`safe-area-inset-bottom`) stuende sonst als Luecke zwischen
+ * Blatt und Tastatur. Eigene Regel mit schwaecherem Selektor, damit ein
+ * randloser Dialog (Dokumentbetrachter, documents.css) bei seinem 0 bleibt. */
+.modal-overlay.modal-overlay--keyboard {
+  padding-bottom: var(--space-3);
+}
+
 /* DAS FORMULAR IN DER DETAILSPALTE (Critique R19). Ab der Split-Schwelle legt
  * sich der Bearbeiten-Dialog deckungsgleich auf die Detailspalte
  * (components/modal.js, dockNextModal): dieselbe Flaeche, derselbe Radius,

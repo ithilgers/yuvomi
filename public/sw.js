@@ -484,6 +484,7 @@ const APP_SHELL = [
   '/utils/ux.js',
   '/utils/vcard.js',
   '/utils/view-transition.js',
+  '/utils/visible-area.js',
   '/utils/version.js',
   '/utils/upload-limit.js',
   '/utils/wall-mode.js',

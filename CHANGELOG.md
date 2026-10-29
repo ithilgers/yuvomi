@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that is not a colour falls back to the default blue on update.
 
 ### Fixed
+- **Forms on the phone stay above the on-screen keyboard.** When the keyboard came up, a form
+  such as "New task" kept its full height behind it: on Android everything from "Tags" down, and
+  the Save and Cancel buttons, sat under the keys, and reaching a hidden field pushed the title and
+  the close button off the top. A form now sits right on top of the keyboard and is only as tall as
+  the space that is left; its title and buttons stay in view, the fields in between scroll, and the
+  field you are typing in stays visible.
 - **The read and write boxes of a new API token are easy to hit.** Each box only answered on its
   own 14 px square; now the whole cell of its column does, as tall as any other control.
 

@@ -33,6 +33,7 @@ import { wireSheetDrag } from '/utils/sheet-drag.js';
 import { iconElement } from '/utils/lucide-icons.js';
 import { expandIn, durationToken, easingToken, isImeComposing } from '/utils/ux.js';
 import { errorSentence } from '/utils/friendly-error.js';
+import { visibleArea, layoutViewportHeight, revealDelta } from '/utils/visible-area.js';
 
 let activeOverlay = null;
 let previouslyFocused = null;
@@ -539,6 +540,76 @@ export function lastInputWasKeyboard() {
   return _lastInput === 'keyboard';
 }
 
+// --------------------------------------------------------
+// Bildschirmtastatur: der Dialog steht im sichtbaren Ausschnitt
+// --------------------------------------------------------
+
+/**
+ * DAS BLATT FOLGT DEM AUSSCHNITT UEBER DER TASTATUR (utils/visible-area.js,
+ * `.modal-overlay--keyboard` in layout.css). Solange die Tastatur etwas
+ * verdeckt, bekommt jeder `.modal-overlay` Lage und Hoehe des sichtbaren Teils
+ * (`--visible-top`, `--visible-height`); faellt sie, gehen beide wieder.
+ *
+ * JEDES OVERLAY, NICHT NUR DAS GETEILTE: die selbstgebauten Divs tragen
+ * dieselbe Tafel, und die Symbolwahl des Kalenders hat ein Suchfeld.
+ *
+ * Ein Durchlauf je Bild: Safari meldet, waehrend er den Ausschnitt verschiebt,
+ * eine Folge von `scroll`. Bleibt ein Bild aus (verborgener Tab), steht der
+ * Dialog am letzten Ausschnitt - kleiner als noetig, aber nie verdeckt.
+ */
+let _visibleAreaFrame = 0;
+// Die zuletzt angelegte Hoehe - nur ein neuer Ausschnitt holt das Feld nach.
+let _visibleHeight = null;
+
+function _scheduleVisibleArea() {
+  if (_visibleAreaFrame || typeof requestAnimationFrame !== 'function' || typeof document === 'undefined') return;
+  if (!document.querySelector?.('.modal-overlay')) {
+    _visibleHeight = null;
+    return;
+  }
+  _visibleAreaFrame = requestAnimationFrame(_syncVisibleArea);
+}
+
+function _syncVisibleArea() {
+  _visibleAreaFrame = 0;
+  const area = visibleArea(window.visualViewport, layoutViewportHeight());
+  for (const overlay of document.querySelectorAll('.modal-overlay')) {
+    // Ohne Tastatur (der Normalfall, am Desktop immer) gibt es nichts zu tun.
+    if (!area && !overlay.classList.contains('modal-overlay--keyboard')) continue;
+    if (area) {
+      overlay.style.setProperty('--visible-top', `${area.top}px`);
+      overlay.style.setProperty('--visible-height', `${area.height}px`);
+    } else {
+      overlay.style.removeProperty('--visible-top');
+      overlay.style.removeProperty('--visible-height');
+    }
+    overlay.classList.toggle('modal-overlay--keyboard', Boolean(area));
+  }
+  const height = area?.height ?? null;
+  if (height !== null && height !== _visibleHeight) _revealFocusedField();
+  _visibleHeight = height;
+}
+
+/**
+ * DAS FOKUSSIERTE FELD BLEIBT IM BILD, WENN DAS BLATT SCHRUMPFT. Der Browser
+ * holt es beim Aufgehen der Tastatur nach dem ALTEN Layout ins Bild; ist das
+ * Blatt danach kuerzer, laege es im Rumpf darunter. Gerollt wird nur der
+ * Rumpf und nicht per `scrollIntoView` - das verschoebe auch den Ausschnitt
+ * selbst, und Kopf und Feld rutschten wieder oben hinaus.
+ */
+function _revealFocusedField() {
+  const field = document.activeElement;
+  const port = field?.closest?.('.modal-panel__body');
+  if (!port || !field.closest('.modal-overlay')) return;
+  const delta = revealDelta(field.getBoundingClientRect(), port.getBoundingClientRect());
+  if (delta) port.scrollTop += delta;
+}
+
+if (typeof window !== 'undefined' && typeof window.visualViewport?.addEventListener === 'function') {
+  window.visualViewport.addEventListener('resize', _scheduleVisibleArea);
+  window.visualViewport.addEventListener('scroll', _scheduleVisibleArea);
+}
+
 /**
  * Fokus nach einem Pane-Wechsel innerhalb eines offenen Modals (Detailansicht →
  * Formular). `trapFocus` läuft nur beim Öffnen; ohne diesen Aufruf bliebe der
@@ -878,6 +949,8 @@ function _enterTopLayer(overlay) {
     overlay.showModal();
   }
   _syncTopLayerGuests();
+  // Geht er bei schon offener Tastatur auf, meldet der Ausschnitt nichts Neues.
+  _scheduleVisibleArea();
 }
 
 /**
